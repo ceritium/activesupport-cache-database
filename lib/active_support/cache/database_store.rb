@@ -70,15 +70,15 @@ module ActiveSupport
         from_record @model.where(key: key).first
       end
 
-      def write_entry(key, entry, _options = nil)
-        attrs = {
-          key: key,
-          value: Marshal.dump(entry.value),
-          version: entry.version.presence
-        }
+      include ActiveRecord::ConnectionAdapters::Quoting
 
-        attrs[:expires_at] = Time.zone.at(entry.expires_at) if entry.expires_at
-        @model.upsert(attrs, unique_by: :key)
+      def write_entry(key, entry, _options = nil)
+        version = entry.version.presence
+        value = Marshal.dump(entry.value)
+        expires_at = Time.zone.at(entry.expires_at) if entry.expires_at
+        attrs = {expires_at: expires_at, value: value, version: version}
+        record = @model.create_with(attrs).create_or_find_by(key: key)
+        record.update!(attrs)
       end
 
       def delete_entry(key, _options = nil)
