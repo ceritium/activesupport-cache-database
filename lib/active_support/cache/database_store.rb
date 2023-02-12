@@ -71,9 +71,14 @@ module ActiveSupport
       end
 
       def write_entry(key, entry, _options = nil)
-        record = @model.where(key: key).first_or_initialize
-        expires_at = Time.zone.at(entry.expires_at) if entry.expires_at
-        record.update! value: Marshal.dump(entry.value), version: entry.version.presence, expires_at: expires_at
+        attrs = {
+          key: key,
+          value: Marshal.dump(entry.value),
+          version: entry.version.presence
+        }
+
+        attrs[:expires_at] = Time.zone.at(entry.expires_at) if entry.expires_at
+        @model.upsert(attrs, unique_by: :key)
       end
 
       def delete_entry(key, _options = nil)
